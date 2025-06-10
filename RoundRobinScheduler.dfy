@@ -30,13 +30,13 @@ constructor (id: int, arrival: nat, burst: nat)
 }
 
 
-method {:axiom} ProveAllProcessesCompleteAtMaxTime(processes: seq<Process>, currentTime: int, maxTime: int, programsExecuted: int)
+lemma {:axiom} ProveAllProcessesCompleteAtMaxTime(processes: seq<Process>, currentTime: int, maxTime: int, programsExecuted: int)
 requires currentTime >= 0 && currentTime >= maxTime
 ensures forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false
 ensures programsExecuted == |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false|
 
 
-method {:axiom} ProveAllObjectsComplete(processes: seq<Process>)
+lemma {:axiom} ProveAllObjectsComplete(processes: seq<Process>)
 requires |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false| == |processes|
 ensures forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false
 ensures |set i | 0 <= i < |processes| && old(processes[i].isComplete) == true && old(processes[i].inQueue) == false| == |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false|
@@ -889,7 +889,7 @@ lemma {:axiom} ArrivalTimeLessThanSum(processes: seq<Process>)
 method Main()
 {
 var n := 4;
-var quantum := 3;
+var quantum := 1;
 var processes := [];
 var temp := new Process(1, 0, 5);
 processes := processes + [temp];
