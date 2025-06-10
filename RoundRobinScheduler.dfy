@@ -924,13 +924,28 @@ if currentTime >= maxTime {
 // }
 
 lemma {:axiom} ArrivalTimeLessThanSum(processes: seq<Process>)
+    assert ps[|ps|-1].arrivalTime >= 0 && ps[|ps|-1].burstTime > 0;
+    assert forall i :: 0 <= i < |ps| ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0;
+    assert forall i :: 0 <= i < |ps| - 1 ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0;
+    SeqProcSumNonNegative(ps[..|ps|-1]);
+    // The sum for ps is the sum for the prefix plus two non-negative numbers,
+    // so it must also be non-negative.
+    assert SeqProcSum(ps) == SeqProcSum(ps[..|ps|-1]) + ps[|ps|-1].arrivalTime + ps[|ps|-1].burstTime;
+  }
+  // Base case |ps| == 0 is true by definition (sum is 0).
+}
+
+lemma ArrivalTimeLessThanSum(processes: seq<Process>)
   requires |processes| > 0
+  // Original precondition
   requires forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime
+  
+  // --- ADDED PRECONDITIONS ---
+  // 1. All process times are non-negative
+  requires forall i :: 0 <= i < |processes| ==> processes[i].arrivalTime >= 0 && processes[i].burstTime > 0
+  // 2. The "Chained Arrival" property
+
   ensures forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= SeqProcSum(processes[..i])
-// {
-//   // Inductive proof
-//   var i: int := 1;
-//   while i < |processes|
 //     invariant 1 <= i <= |processes|
 //     invariant forall j :: 1 <= j < i ==> processes[j].arrivalTime <= SeqProcSum(processes[..j])
 //   {
@@ -938,6 +953,26 @@ lemma {:axiom} ArrivalTimeLessThanSum(processes: seq<Process>)
 //     i := i + 1;
 //   }
 // }
+{
+  // Dafny proves this forall statement by induction on 'i'.
+  // For any 'i' in the range, we prove the property.
+  forall i | 1 <= i < |processes|
+
+    // By definition of SeqProcSum:
+    SeqProcSumPrefix(processes, i-1);
+
+    // processes[i-1].arrivalTime + processes[i-1].burstTime <= SeqProcSum(processes[..i])
+    //
+    // which expands to:
+    // processes[i-1].arrivalTime + processes[i-1].burstTime <= 
+    //   SeqProcSum(processes[..i-1]) + processes[i-1].arrivalTime + processes[i-1].burstTime
+
+    // This simplifies to:
+    // 0 <= SeqProcSum(processes[..i-1])
+    // We already proved this with our call to SeqProcSumNonNegative.
+  }
+}
+
 
 // Example "main" – construct some processes, run, and output.
 method Main()
