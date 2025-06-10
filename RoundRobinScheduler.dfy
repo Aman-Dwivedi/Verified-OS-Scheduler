@@ -798,9 +798,9 @@ method RoundRobin(
     quantum: int)
     returns (programsExecuted: int)
     requires |processes| == n && quantum > 0 && n > 0 && processes[0].arrivalTime == 0
-    requires forall i :: 1 <= i < n ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i])
-    requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
-    requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
+  requires forall i :: 1 <= i < n ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i])
+  requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
+  requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
     modifies processes, processes[..]
     ensures programsExecuted == n
     ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false// && p.burstTimeRemaining == 0 && p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
@@ -923,7 +923,13 @@ if currentTime >= maxTime {
 // print "Average Turnaround Time=", sumT as real / n as real, "\n";
 // }
 
-lemma {:axiom} ArrivalTimeLessThanSum(processes: seq<Process>)
+lemma SeqProcSumNonNegative(ps: seq<Process>)
+  requires forall i :: 0 <= i < |ps| ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0
+  ensures if |ps| > 0 then SeqProcSum(ps) > 0 else SeqProcSum(ps) == 0
+  decreases |ps|
+{
+  if |ps| > 0 {
+    // Recursive call on the prefix establishes the inductive hypothesis
     assert ps[|ps|-1].arrivalTime >= 0 && ps[|ps|-1].burstTime > 0;
     assert forall i :: 0 <= i < |ps| ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0;
     assert forall i :: 0 <= i < |ps| - 1 ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0;
@@ -944,23 +950,33 @@ lemma ArrivalTimeLessThanSum(processes: seq<Process>)
   // 1. All process times are non-negative
   requires forall i :: 0 <= i < |processes| ==> processes[i].arrivalTime >= 0 && processes[i].burstTime > 0
   // 2. The "Chained Arrival" property
+  requires forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= processes[i-1].arrivalTime + processes[i-1].burstTime
 
+  // Original ensures clause
   ensures forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= SeqProcSum(processes[..i])
-//     invariant 1 <= i <= |processes|
-//     invariant forall j :: 1 <= j < i ==> processes[j].arrivalTime <= SeqProcSum(processes[..j])
-//   {
-//     assert processes[i].arrivalTime <= SeqProcSum(processes[..i]);
-//     i := i + 1;
-//   }
-// }
 {
   // Dafny proves this forall statement by induction on 'i'.
   // For any 'i' in the range, we prove the property.
   forall i | 1 <= i < |processes|
+    ensures processes[i].arrivalTime <= SeqProcSum(processes[..i])
+  {
+    // Let's establish that the sum of elements before process i-1 is non-negative.
+    // The sequence processes[..i-1] contains elements from 0 to i-2.
+    var prefix := processes[..i-1];
+    SeqProcSumNonNegative(prefix); // Using Lemma 1
+    assert SeqProcSum(prefix) >= 0;
 
     // By definition of SeqProcSum:
     SeqProcSumPrefix(processes, i-1);
+    assert SeqProcSum(processes[..i]) == SeqProcSum(processes[..i-1]) + processes[i-1].arrivalTime + processes[i-1].burstTime;
+    
+    // From our added "Chained Arrival" precondition, we know:
+    // processes[i].arrivalTime <= processes[i-1].arrivalTime + processes[i-1].burstTime
 
+    // We want to prove:
+    // processes[i].arrivalTime <= SeqProcSum(processes[..i])
+
+    // Combining the above, we need to show:
     // processes[i-1].arrivalTime + processes[i-1].burstTime <= SeqProcSum(processes[..i])
     //
     // which expands to:
@@ -969,7 +985,9 @@ lemma ArrivalTimeLessThanSum(processes: seq<Process>)
 
     // This simplifies to:
     // 0 <= SeqProcSum(processes[..i-1])
+    
     // We already proved this with our call to SeqProcSumNonNegative.
+    // Therefore, the property holds for all i.
   }
 }
 
