@@ -127,6 +127,12 @@ lemma {:axiom} setAndSeqEqual(s: seq<int>, sSet: set<int>)
 //{
 //}
 
+// Returns a set containing all integers from 0 to n-1
+function SetOfIntegers(n: nat): set<int>
+{
+  set i {:trigger i} | 0 <= i < n
+}
+
 lemma MissingOneElementLength(processes: seq<Process>, s: seq<int>, n: nat)
   requires |processes| == n
   requires exists i :: 0 <= i < n && processes[i].isComplete == false && processes[i].inQueue == true && !exists k :: 0 <= k < |s| && s[k] == i
@@ -142,7 +148,7 @@ lemma MissingOneElementLength(processes: seq<Process>, s: seq<int>, n: nat)
                      processes[i].inQueue == true && i !in sIndices;
   
   // Let's prove that sIndices is a proper subset of {0,...,n-1}
-  var allIndices := set i | 0 <= i < n;
+  var allIndices := SetOfIntegers(n);
   
   // All elements in s are valid indices
   assert forall k :: k in sIndices ==> 0 <= k < n;
@@ -243,7 +249,7 @@ while i < n
     invariant forall i :: 0 <= i < n ==> old(processes[i].isComplete) == processes[i].isComplete && old(processes[i].arrivalTime) == processes[i].arrivalTime
     invariant forall i :: 0 <= i < n ==> processes[i].isComplete == true && processes[i].inQueue ==> |newQueue| <= n - 1
     invariant forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
-    invariant forall l :: 0 <= l < i && old(processes[l].inQueue) == true && (!exists j :: 0 <= j < |readyQueue| && readyQueue[j] == l) ==> (!exists k :: 0 <= k < |newQueue| && newQueue[k] == l);
+    invariant forall l :: 0 <= l < i && old(processes[l].inQueue) == true && (!exists j :: 0 <= j < |readyQueue| && readyQueue[j] == l) ==> (!exists k :: 0 <= k < |newQueue| && newQueue[k] == l)
     invariant forall j :: j in newQueue ==> 0 <= j < n && (old(processes[j].inQueue) == false || exists k :: 0 <= k < |readyQueue| && readyQueue[k] == j)
     invariant |set i | 0 <= i < n && old(processes[i].isComplete) == true && old(processes[i].inQueue) == false| == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
     decreases n - i
@@ -375,23 +381,23 @@ lemma newQueueMustBeEmpty(processes: seq<Process>, n: nat, newQueue: seq<int>)
 }
 
 lemma SetOfNElementsHasSizeN(n: nat)
-  ensures |set i | 0 <= i < n| == n
+  ensures |SetOfIntegers(n)| == n
 {
   // We'll prove this by induction on n
   if n == 0 {
     // Base case: empty set has size 0
     //assert {set i | 0 <= i < 0} == {};
-    assert |set i | 0 <= i < 0| == 0;
+    assert |SetOfIntegers(0)| == 0;
   } else {
     // Inductive case: assume the lemma holds for n-1
     SetOfNElementsHasSizeN(n-1);
     
     // By induction hypothesis, we know:
-    assert |set i | 0 <= i < n-1| == n-1;
+    assert |SetOfIntegers(n-1)| == n-1;
     
     // The set for n includes all elements from the set for n-1, plus the element n-1
-    var setNMinus1 := set i | 0 <= i < n-1;
-    var setN := set i | 0 <= i < n;
+    var setNMinus1 := SetOfIntegers(n-1);
+    var setN := SetOfIntegers(n);
     
     // Prove that setN = setNMinus1 ∪ {n-1}
     assert setN == setNMinus1 + {n-1};
@@ -417,7 +423,7 @@ lemma NotAllCompleteImpliesCountNotN(processes: seq<Process>, n: nat)
   assert exists j :: 0 <= j < n && processes[j].isComplete == false && !(j in completedNotInQueue);
   assert exists j :: 0 <= j < n && !(j in completedNotInQueue); // Because isComplete == false
   assert forall i :: i in completedNotInQueue ==> 0 <= i < n;
-  var completeSet := set i | 0 <= i < n;
+  var completeSet := SetOfIntegers(n);
   SetOfNElementsHasSizeN(n);
   assert |completeSet| == n;
   assert completeSet > completedNotInQueue;
