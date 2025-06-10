@@ -36,31 +36,54 @@ ensures forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && 
 ensures programsExecuted == |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false|
 
 
-lemma {:axiom} ProveAllObjectsComplete(processes: seq<Process>)
+lemma ProveAllObjectsComplete(processes: seq<Process>)
 requires |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false| == |processes|
 ensures forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false
-ensures |set i | 0 <= i < |processes| && old(processes[i].isComplete) == true && old(processes[i].inQueue) == false| == |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false|
-// {
-//     var i := 0;
-//     while i < n
-//         invariant 0 <= i <= n
-//         invariant forall j :: 0 <= j < i ==> processes[j].isComplete == true
-//     {
-//         // Proof by contradiction
-//         if !processes[i].isComplete {
-//             // If any process is not complete, then the set of complete processes would be smaller than n
-//             var completeSet := set j | 0 <= j < n && processes[j].isComplete;
-//             assert i !in completeSet;
-//             assert |completeSet| < n;  // Contradiction with the precondition
-//             assert false;              // Unreachable
-//         }
-        
-//         i := i + 1;
-//     }
-
-//     // At this point, we've proven that all processes have isComplete == true
-//     assert forall i :: 0 <= i < n ==> processes[i].isComplete == true;
-// }
+{
+  // Define the set of all indices in the processes sequence
+  var allIndices := SetOfIntegers(|processes|);
+  
+  // Define the set of indices of completed processes
+  var completedIndices := set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false;
+  
+  // We know from the precondition that |completedIndices| == |processes|
+  assert |completedIndices| == |processes|;
+  assert forall i :: 0 <= i < |processes| ==> i in allIndices;
+  // Since allIndices has |processes| elements
+  SetOfNElementsHasSizeN(|processes|);
+  assert |allIndices| == |processes|;
+  
+  // completedIndices must be a subset of allIndices
+  assert completedIndices <= allIndices;
+  
+  // For two finite sets A and B, if A is a subset of B and |A| = |B|, then A = B
+  if completedIndices != allIndices {
+    // If they're not equal, then completedIndices must be a strict subset
+    assert completedIndices < allIndices;
+    
+    // By the cardinality lemma, |completedIndices| < |allIndices|
+    SubsetImpliesCardinalityLe(completedIndices, allIndices);
+    assert |completedIndices| < |allIndices|;
+    
+    // But we know |completedIndices| == |processes| == |allIndices|
+    assert |completedIndices| == |allIndices|;
+    
+    // Contradiction! So completedIndices must equal allIndices
+    assert false;
+  }
+  
+  // Therefore, completedIndices = allIndices
+  assert completedIndices == allIndices;
+  
+  // This means every index i in the range is in completedIndices
+  assert forall i :: 0 <= i < |processes| ==> i in completedIndices;
+  
+  // By the definition of completedIndices, we know
+  assert forall i :: i in completedIndices ==> processes[i].isComplete == true && processes[i].inQueue == false;
+  
+  // Combining these facts gives us our goal
+  assert forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false;
+}
 
 lemma SubsetImpliesCardinalityLe<T>(A: set<T>, B: set<T>)
   requires A <= B || A < B
@@ -120,12 +143,28 @@ method UniqueSeqLengthAtMostN(s: seq<int>, n: nat)
     assert |sSet| <= |numbersSet|;
 }
 
-lemma {:axiom} setAndSeqEqual(s: seq<int>, sSet: set<int>)
+lemma setAndSeqEqual(s: seq<int>, sSet: set<int>)
   requires forall i :: 0 <= i < |s| ==> s[i] in sSet
+  requires forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
   requires forall i :: i in sSet ==> i in s
   ensures |s| == |sSet|
-//{
-//}
+{
+  if |s| == 0 {
+    // Base case: If the sequence is empty, the set must also be empty.
+    assert sSet == {};
+  } else {
+    // Inductive step:
+    // Consider the sequence without its last element.
+    var s' := s[..|s|-1];
+    var last := s[|s|-1];
+
+    // The corresponding set for s' would be sSet without the last element.
+    var sSet' := sSet - {last};
+
+    // Recursively call the lemma on the smaller sequence and set.
+    setAndSeqEqual(s', sSet');
+  }
+}
 
 // Returns a set containing all integers from 0 to n-1
 function SetOfIntegers(n: nat): set<int>
@@ -278,64 +317,79 @@ if (exists j :: 0 <= j < n && processes[j].isComplete == false && old(processes[
 }
 }
 
-// Marks a single process as complete and verifies the count increased by exactly one
-// method MarkProcessComplete(processes: seq<Process>, n: int, processIndex: int)
-// returns (oldCount: int, newCount: int)
-// modifies processes[processIndex]
-// requires |processes| == n && n > 0
-// requires 0 <= processIndex < n
-// requires processes[processIndex].isComplete == false
-// requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
-// ensures processes[processIndex].isComplete == true
-// ensures newCount == oldCount + 1
-// ensures newCount == |set i | 0 <= i < n && processes[i].isComplete|
-// ensures oldCount == |set i | 0 <= i < n && old(processes[i].isComplete)|
-// {
-//     // Count completed processes before the change
-//     var before := set i | 0 <= i < n && processes[i].isComplete;
-//     oldCount := |set i | 0 <= i < n && processes[i].isComplete|;
-//     processes[processIndex].isComplete := true;
-//     // Count completed processes after the change
-//     newCount := |set i | 0 <= i < n && processes[i].isComplete|;
-//     var after := set i | 0 <= i < n && processes[i].isComplete;
-//     assert after == before + {processIndex};
+lemma NotInQueueProof(n: nat, completeNotInQueueSet: set<int>)
+  requires |completeNotInQueueSet| == n
+  requires forall i :: i in completeNotInQueueSet ==> 0 <= i < n
+  ensures  forall i :: 0 <= i < n ==> i in completeNotInQueueSet
+{
+  // Define the set of all indices from 0 to n-1
+  var allIndices := SetOfIntegers(n);
+  
+  // We know that completeNotInQueueSet has n elements
+  assert |completeNotInQueueSet| == n;
+  
+  // We also know that completeNotInQueueSet is a subset of allIndices
+  assert completeNotInQueueSet <= allIndices;
+  
+  // Since allIndices has exactly n elements (by definition)
+  SetOfNElementsHasSizeN(n);
+  assert |allIndices| == n;
+  
+  // If two finite sets have the same size and one is a subset of the other,
+  // then they must be equal
+  if completeNotInQueueSet != allIndices {
+    // If they're not equal, then completeNotInQueueSet must be a strict subset
+    assert completeNotInQueueSet < allIndices;
     
-//     // Prove that exactly one process was marked complete
-//     assert old(processes[processIndex].isComplete) == false;
-//     assert processes[processIndex].isComplete == true;
-//     assert forall j :: 0 <= j < n && j != processIndex ==> 
-//         processes[j].isComplete == old(processes[j].isComplete);
-//     assert processes[processIndex].isComplete != old(processes[processIndex].isComplete);
-//     assert newCount == oldCount + 1;
-// }
+    // By the cardinality lemma, |completeNotInQueueSet| < |allIndices|
+    SubsetImpliesCardinalityLe(completeNotInQueueSet, allIndices);
+    assert |completeNotInQueueSet| < |allIndices|;
+    
+    // But we know |completeNotInQueueSet| == n == |allIndices|
+    assert |completeNotInQueueSet| == |allIndices|;
+    
+    // Contradiction! So completeNotInQueueSet must equal allIndices
+    assert false;
+  }
+  
+  // Therefore, completeNotInQueueSet = allIndices
+  assert completeNotInQueueSet == allIndices;
+  
+  // This means every index i in the range is in completeNotInQueueSet
+  assert forall i :: 0 <= i < n ==> i in completeNotInQueueSet;
+}
 
-lemma {:axiom} AllProcessesCompleteNotInQueue(processes: seq<Process>, n: nat)
+lemma AllProcessesCompleteNotInQueue(processes: seq<Process>, n: nat)
   requires |processes| == n
+  requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   requires |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false| == n
-  ensures forall i :: 0 <= i < n ==> processes[i].isComplete && !processes[i].inQueue
-// {
-//   // The requirement states that the set of indices where processes are complete and not in queue has size n
-//   // Since n is the total number of processes, this means all processes must be complete and not in queue
+  ensures forall i :: 0 <= i < n ==> processes[i].isComplete == true && processes[i].inQueue == false
+{
+  // The requirement states that the set of indices where processes are complete and not in queue has size n
+  // Since n is the total number of processes, this means all processes must be complete and not in queue
   
-//   // Get the set of indices where processes are complete and not in queue
-//   var completeNotInQueueSet := set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
+  // Get the set of indices where processes are complete and not in queue
+  var completeNotInQueueSet := set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
   
-//   // We know this set has size n
-//   assert |completeNotInQueueSet| == n;
+  // We know this set has size n
+  assert |completeNotInQueueSet| == n;
   
-//   // Since there are n total processes, and n processes that are complete and not in queue,
-//   // every process must be in this set
-//   assert forall i :: 0 <= i < n ==> i in completeNotInQueueSet;
+  // Since there are n total processes, and n processes that are complete and not in queue,
+  // every process must be in this set
+  assert forall i :: i in completeNotInQueueSet ==> 0 <= i < n;
+  NotInQueueProof(n, completeNotInQueueSet);
+  assert forall i :: 0 <= i < n ==> i in completeNotInQueueSet;
   
-//   // By the definition of the set, if i is in the set, then processes[i] is complete and not in queue
-//   assert forall i :: i in completeNotInQueueSet ==> processes[i].isComplete && !processes[i].inQueue;
+  // By the definition of the set, if i is in the set, then processes[i] is complete and not in queue
+  assert forall i :: i in completeNotInQueueSet ==> processes[i].isComplete && !processes[i].inQueue;
   
-//   // Combining these facts proves our lemma
-//   assert forall i :: 0 <= i < n ==> processes[i].isComplete && !processes[i].inQueue;
-// }
+  // Combining these facts proves our lemma
+  assert forall i :: 0 <= i < n ==> processes[i].isComplete && !processes[i].inQueue;
+}
 
 lemma newQueueMustBeEmpty(processes: seq<Process>, n: nat, newQueue: seq<int>)
   requires |processes| == n
+  requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   requires |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false| == n
   requires forall i :: 0 <= i < |newQueue| ==> 0 <= newQueue[i] < n && processes[newQueue[i]].isComplete == false && processes[newQueue[i]].inQueue == true
   ensures |newQueue| == 0
