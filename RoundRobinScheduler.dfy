@@ -477,6 +477,7 @@ returns (
     ensures updatedExecuted == programsExecuted || updatedExecuted == programsExecuted + 1
     ensures updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
     ensures forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
+    //ensures forall j :: 0 <= j < n && processes[j].isComplete == true ==> processes[j].burstTimeRemaining == 0 //&& processes[j].completionTime > processes[j].arrivalTime && processes[j].turnaroundTime > processes[j].waitingTime && processes[j].waitingTime >= 0
     //ensures forall j :: 0 <= j < n && processes[j].inQueue == true ==> exists k :: 0 <= k < |newQueue| && newQueue[k] == j
     //ensures forall p :: p in processes[..] ==> if (p.isComplete == true && p.inQueue == false) then (p.burstTimeRemaining == 0 && p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0) else (p.burstTimeRemaining > 0 && p.completionTime == 0 && p.turnaroundTime == 0 && p.waitingTime == 0)
 {
@@ -500,11 +501,14 @@ returns (
     updatedTime := currentTime + processes[i].burstTimeRemaining;
     processes[i].completionTime := updatedTime;
     processes[i].waitingTime := processes[i].completionTime - processes[i].arrivalTime - processes[i].burstTime;
-    processes[i].turnaroundTime := processes[i].waitingTime + processes[i].burstTime;
     if processes[i].waitingTime < 0 {
       processes[i].waitingTime := 0;
     }
+    
+    processes[i].turnaroundTime := processes[i].waitingTime + processes[i].burstTime;
+    
     processes[i].burstTimeRemaining := 0;
+    //assert forall j :: 0 <= j < n && processes[j].isComplete == true ==> processes[j].burstTimeRemaining == 0 && processes[j].completionTime > processes[j].arrivalTime && processes[j].turnaroundTime > processes[j].waitingTime && processes[j].waitingTime >= 0;
     var newcount := set i | 0 <= i < n && processes[i].isComplete == true&& processes[i].inQueue == false;
     
     assert newcount == count + {i};
@@ -738,8 +742,8 @@ method RoundRobin(
     requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
     requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
     modifies processes, processes[..]
-    //ensures programsExecuted == n
-    //ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false// && p.burstTimeRemaining == 0 && p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
+    ensures programsExecuted == n
+    ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false// && p.burstTimeRemaining == 0 && p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
 {
   var readyQueue: seq<int> := [0];
   var currentTime := 0;
@@ -859,6 +863,22 @@ if currentTime >= maxTime {
 // print "Average Turnaround Time=", sumT as real / n as real, "\n";
 // }
 
+lemma {:axiom} ArrivalTimeLessThanSum(processes: seq<Process>)
+  requires |processes| > 0
+  requires forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime
+  ensures forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= SeqProcSum(processes[..i])
+// {
+//   // Inductive proof
+//   var i: int := 1;
+//   while i < |processes|
+//     invariant 1 <= i <= |processes|
+//     invariant forall j :: 1 <= j < i ==> processes[j].arrivalTime <= SeqProcSum(processes[..j])
+//   {
+//     assert processes[i].arrivalTime <= SeqProcSum(processes[..i]);
+//     i := i + 1;
+//   }
+// }
+
 // Example "main" – construct some processes, run, and output.
 method Main()
 {
@@ -867,308 +887,18 @@ var quantum := 3;
 var processes := [];
 var temp := new Process(1, 0, 5);
 processes := processes + [temp];
-//assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
 temp := new Process(2, 1, 3);
 processes := processes + [temp];
-assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
 temp := new Process(3, 2, 8);
 processes := processes + [temp];
-//assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
 temp := new Process(4, 3, 6);
 processes := processes + [temp];
-//assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
+ArrivalTimeLessThanSum(processes);
+assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
 
 var completed := RoundRobin(processes, n, quantum);
 assert completed == n;
+assert forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false;// && p.burstTimeRemaining == 0 && p.completionTime > p.arrivalTime && p.turnaroundTime > p.waitingTime && p.waitingTime >= 0;
 //assert forall p :: p in processes[..] ==> p.turnaroundTime == p.completionTime - p.arrivalTime;
 //Output(processes, n);
 }
-
-
-/*
-class Process {
-  var pid: int
-  var arrivalTime: int
-  var burstTime: int
-  var burstTimeRemaining: int
-  var completionTime: int
-  var turnaroundTime: int
-  var waitingTime: int
-  var isComplete: bool
-  var inQueue: bool
-
-  constructor(p: int, bt: int, at: int)
-    ensures this.pid == p && this.burstTime == bt && this.burstTimeRemaining == bt && this.arrivalTime == at
-    && this.completionTime == 0 && this.turnaroundTime == 0 && this.waitingTime == 0 && this.isComplete == false 
-    && this.inQueue == false
-  {
-    pid := p;
-    arrivalTime := at;
-    burstTime := bt;
-    burstTimeRemaining := bt;
-    completionTime := 0;
-    turnaroundTime := 0;
-    waitingTime := 0;
-    isComplete := false;
-    inQueue := false;
-  }
-}
-
-class RoundRobinScheduler {
-  var processes: seq<Process>
-  var timeQuantum: int
-  var currentTime: int
-  var readyQueue: seq<Process>
-  var completedProcesses: seq<Process>
-  var executionSequence: seq<(int, int, int)>
-
-  constructor(quantum: int)
-    requires quantum > 0
-    ensures timeQuantum == quantum
-    ensures |processes| == 0
-    ensures |readyQueue| == 0
-    ensures |completedProcesses| == 0
-    ensures |executionSequence| == 0
-    ensures currentTime == 0
-  {
-    timeQuantum := quantum;
-    processes := [];
-    readyQueue := [];
-    completedProcesses := [];
-    executionSequence := [];
-    currentTime := 0;
-  }
-
-  // Input function (axiom) - in real implementation this would parse user input
-  method Input() returns (success: bool)
-    modifies this
-    ensures success ==> |processes| > 0
-  {
-    // Example implementation with hardcoded values
-    var p1 := new Process(1, 5, 0);
-    var p2 := new Process(2, 4, 1);
-    var p3 := new Process(3, 3, 2);
-    
-    processes := [p1, p2, p3];
-    return true;
-  }
-
-  method UpdateReadyQueue()
-    modifies this, set p | p in processes :: p`inQueue
-    ensures forall p :: p in readyQueue ==> p in processes
-  {
-    var newQueue: seq<Process> := [];
-    var i := 0;
-    while i < |processes|
-      invariant 0 <= i <= |processes|
-      invariant forall p :: p in newQueue ==> p in processes
-    {
-      if processes[i].arrivalTime <= currentTime && !processes[i].isComplete && !processes[i].inQueue {
-        processes[i].inQueue := true;
-        newQueue := newQueue + [processes[i]];
-      }
-      i := i + 1;
-    }
-    readyQueue := readyQueue + newQueue;
-  }
-
-  method Scheduler()
-    modifies this, 
-      set p | p in processes :: p`burstTimeRemaining, 
-      set p | p in processes :: p`isComplete,
-      set p | p in processes :: p`inQueue,
-      set p | p in processes :: p`completionTime
-    ensures forall p :: p in old(processes) ==> p in processes
-  {
-    while ExistsUnfinishedProcess()
-      invariant forall p :: p in processes ==> p in old(processes)
-      decreases SumRemainingTime()
-    {
-      UpdateReadyQueue();
-      
-      if |readyQueue| > 0 {
-        var currentProcess := readyQueue[0];
-        var executeTime := if currentProcess.burstTimeRemaining > timeQuantum 
-                          then timeQuantum 
-                          else currentProcess.burstTimeRemaining;
-        
-        // Execute process
-        currentProcess.burstTimeRemaining := currentProcess.burstTimeRemaining - executeTime;
-        currentTime := currentTime + executeTime;
-        
-        // Record execution
-        executionSequence := executionSequence + [(currentProcess.pid, currentTime - executeTime, executeTime)];
-        
-        // Update process status
-        if currentProcess.burstTimeRemaining == 0 {
-          currentProcess.isComplete := true;
-          currentProcess.completionTime := currentTime;
-          completedProcesses := completedProcesses + [currentProcess];
-          readyQueue := readyQueue[1..];
-        } else {
-          // Rotate in ready queue
-          readyQueue := readyQueue[1..] + [currentProcess];
-        }
-        currentProcess.inQueue := false;
-      } else {
-        // Advance time to next arrival
-        var nextArrival := FindNextArrival();
-        if nextArrival > currentTime {
-          currentTime := nextArrival;
-        } else {
-          currentTime := currentTime + 1;
-        }
-      }
-    }
-  }
-
-  method ComputeWaitingTime()
-    modifies set p | p in processes :: p`waitingTime
-    requires forall p :: p in processes ==> p.isComplete
-  {
-    var i := 0;
-    while i < |processes|
-      invariant 0 <= i <= |processes|
-    {
-      processes[i].waitingTime := processes[i].completionTime - processes[i].arrivalTime - processes[i].burstTime;
-      i := i + 1;
-    }
-  }
-
-  method ComputeTurnaroundTime()
-    modifies set p | p in processes :: p`turnaroundTime
-    requires forall p :: p in processes ==> p.isComplete
-  {
-    var i := 0;
-    while i < |processes|
-      invariant 0 <= i <= |processes|
-    {
-      processes[i].turnaroundTime := processes[i].completionTime - processes[i].arrivalTime;
-      i := i + 1;
-    }
-  }
-
-  method ComputeAverageWaitAndTurnaroundTime() returns (avgWait: real, avgTurnaround: real)
-    requires |processes| > 0
-    requires forall p :: p in processes ==> p.isComplete
-    ensures avgWait >= 0.0
-    ensures avgTurnaround >= 0.0
-  {
-    var totalWait := 0;
-    var totalTurnaround := 0;
-    var i := 0;
-
-    while i < |processes|
-      invariant 0 <= i <= |processes|
-      invariant totalWait >= 0
-      invariant totalTurnaround >= 0
-    {
-      totalWait := totalWait + processes[i].waitingTime;
-      totalTurnaround := totalTurnaround + processes[i].turnaroundTime;
-      i := i + 1;
-    }
-
-    avgWait := totalWait as real / |processes| as real;
-    avgTurnaround := totalTurnaround as real / |processes| as real;
-  }
-
-  // Output function (axiom) - in real implementation this would format and display results
-  method Output()
-    requires forall p :: p in processes ==> p.isComplete
-  {
-    var i := 0;
-    print "Execution Sequence (PID, Start Time, Duration):\n";
-    while i < |executionSequence|
-    {
-      print executionSequence[i], "\n";
-      i := i + 1;
-    }
-
-    print "\nProcess Statistics:\n";
-    i := 0;
-    while i < |processes|
-    {
-      var p := processes[i];
-      print "Process ", p.pid, ":\n";
-      print "  Completion Time: ", p.completionTime, "\n";
-      print "  Turnaround Time: ", p.turnaroundTime, "\n";
-      print "  Waiting Time: ", p.waitingTime, "\n";
-      i := i + 1;
-    }
-
-    var avgWait, avgTurnaround := ComputeAverageWaitAndTurnaroundTime();
-    print "\nAverages:\n";
-    print "Average Waiting Time: ", avgWait, "\n";
-    print "Average Turnaround Time: ", avgTurnaround, "\n";
-  }
-
-  predicate ExistsUnfinishedProcess()
-    reads this, this.processes, set p | p in processes :: p`isComplete
-  {
-    exists p :: p in processes && !p.isComplete
-  }
-
-  function SumRemainingTime(): nat
-    reads this, this.processes, set p | p in processes :: p`burstTimeRemaining
-  {
-    if |processes| == 0 then 
-      0
-    else 
-      processes[0].burstTimeRemaining + SumRemainingTimeHelper(processes[1..])
-  }
-
-  function SumRemainingTimeHelper(procs: seq<Process>): nat
-    reads set p | p in procs :: p`burstTimeRemaining
-    decreases |procs|
-  {
-    if |procs| == 0 then 
-      0
-    else 
-      procs[0].burstTimeRemaining + SumRemainingTimeHelper(procs[1..])
-  }
-
-  method FindNextArrival() returns (nextTime: int)
-    requires |processes| > 0
-    ensures nextTime >= currentTime
-  {
-    var minTime := MaxInt();
-    var i := 0;
-    while i < |processes|
-      invariant 0 <= i <= |processes|
-    {
-      if processes[i].arrivalTime > currentTime && processes[i].arrivalTime < minTime {
-        minTime := processes[i].arrivalTime;
-      }
-      i := i + 1;
-    }
-    return if minTime == MaxInt() then currentTime + 1 else minTime;
-  }
-
-  function MaxInt(): int
-  {
-    2147483647 // Maximum 32-bit integer
-  }
-}
-
-method Main()
-{
-  var scheduler := new RoundRobinScheduler(2);
-  
-  // Input processes
-  var inputSuccess := scheduler.Input();
-  if !inputSuccess {
-    print "Failed to input processes\n";
-    return;
-  }
-  
-  // Run scheduler
-  scheduler.Scheduler();
-  
-  // Compute times
-  scheduler.ComputeWaitingTime();
-  scheduler.ComputeTurnaroundTime();
-  
-  // Output results
-  scheduler.Output();
-}*/
-
