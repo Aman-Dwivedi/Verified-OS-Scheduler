@@ -177,15 +177,12 @@ method UpdateQueue(
   ensures forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
 {
   // Initialize return values
-  //newQueue := readyQueue;
   updatedTime := currentTime;
   updatedExecuted := programsExecuted;
 
   // Pop the first index off the ready queue
   var i := readyQueue[0];
   newQueue := readyQueue[1..];
-  //assert |newQueue| == 0 ==> exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false;
-  assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
   if processes[i].burstTimeRemaining <= quantum {
     // Process will finish in this quantum
     var count := set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
@@ -203,7 +200,6 @@ method UpdateQueue(
     processes[i].turnaroundTime := processes[i].waitingTime + processes[i].burstTime;
 
     processes[i].burstTimeRemaining := 0;
-    //assert forall j :: 0 <= j < n && processes[j].isComplete == true ==> processes[j].burstTimeRemaining == 0 && processes[j].completionTime > processes[j].arrivalTime && processes[j].turnaroundTime > processes[j].waitingTime && processes[j].waitingTime >= 0;
     var newcount := set i | 0 <= i < n && processes[i].isComplete == true&& processes[i].inQueue == false;
 
     assert newcount == count + {i};
@@ -211,78 +207,36 @@ method UpdateQueue(
     updatedExecuted := programsExecuted + 1;
 
     // Check for new arrivals if not all processes have been enqueued
-    //assert ProcessQueueCurTime(processes, updatedTime);
     if updatedExecuted != n {
-      assert forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0;
-      //assert |newQueue| == 0 ==> exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false;
-      assert 0 <= |newQueue| <= n;
-      //assert forall j :: 0 <= j < n && processes[j].inQueue == true ==> exists k :: 0 <= k < |readyQueue| && readyQueue[k] == j;
-      //assert |newQueue| == 0 ==> (!exists j :: 0 <= j < n && processes[j].inQueue == true);
-      //assert (!exists j :: 0 <= j < n && processes[j].inQueue == true) ==> (exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false);
-      assert |newQueue| == 0 ==> exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false;
       newQueue := CheckForNewArrivals(processes, n, updatedTime, newQueue, false);
-      assert 0 < |newQueue| <= n;
-      assert forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0;
-      //assert 0 < |newQueue| <= n;
     } else {
-      assert |processes| == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|;
-      assert forall i :: 0 <= i < |newQueue| ==> processes[newQueue[i]].isComplete == false && processes[newQueue[i]].inQueue == true;
       newQueueMustBeEmpty(processes, n, newQueue);
-      assert |newQueue| == 0;
       ProveAllObjectsComplete(processes);
     }
-    assert updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|;
-    assert updatedTime > currentTime;
-    assert if updatedExecuted == n then |newQueue| == 0 else 0 < |newQueue| <= n;
   } else {
     // Process is not done; preempt after one quantum
     var count := set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
     processes[i].burstTimeRemaining := processes[i].burstTimeRemaining - quantum;
-    //assert processes[i].isComplete == false;
+    
     assert count == set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
-    //assert updatedExecuted == |count|;
     assert updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|;
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
-
+    
     updatedTime := currentTime + quantum;
 
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
-
     // Check for new arrivals if not all processes have been enqueued
-    //if programsExecuted != n {
-    assert forall j :: 0 <= j < |newQueue| ==> newQueue[j] != i;
-    assert 0 <= |newQueue| < n;
-    assert updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|;
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
     newQueue := newQueue + [i];
-    assert |newQueue| == 0 ==> exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false;
     newQueue := CheckForNewArrivals(processes, n, updatedTime, newQueue, true);
-    assert updatedTime == currentTime + quantum;
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= currentTime;
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
 
-    assert 0 <= |newQueue| <= n;
-    assert processes[i].inQueue == true;
-    //assert forall j :: 0 <= j < |newQueue| ==> newQueue[j] != i;
-    //assert forall i :: 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
-    assert ProcessQueueCurTime(processes, updatedTime);
-    assert updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|;
-    assert exists j :: 0 <= j < n && processes[j].isComplete == false;
     ProveUpdatedExecutedNotN(processes, n, updatedExecuted);
-    assert updatedExecuted != n;
 
-    // Re‐enqueue the incomplete process
-    assert forall i, j :: 0 <= i < j < |newQueue| ==> newQueue[i] != newQueue[j];
-    assert forall i :: i in newQueue ==> 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
-    assert 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
-
-
-    assert if updatedExecuted == n then |newQueue| == 0 else 0 < |newQueue| <= n;
-    assert forall i, j :: 0 <= i < j < |newQueue| ==> newQueue[i] != newQueue[j];
-    assert forall i :: i in newQueue ==> 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= updatedTime;
   }
 }
 
+/*
+ * This method initializes the ready queue and the current time. It also marks the processes which have
+ * arrival time before the current time as present in the ready queue by moving them to the ready queue
+ * and marking inQueue flag as true.
+*/
 method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq<int>, currentTime: int)
   modifies processes[..]
   requires |processes| == n && n > 0 && processes[0].arrivalTime == 0
@@ -290,10 +244,8 @@ method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   ensures forall j :: j in readyQueue ==> 0 <= j < n && processes[j].inQueue == true && processes[j].isComplete == false && processes[j].arrivalTime <= currentTime
   ensures forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime)
-  ensures forall i :: 0 <= i < n ==> processes[i].burstTime > 0 && processes[i].burstTimeRemaining > 0
   ensures forall i :: 0 <= i < n ==> processes[i].burstTimeRemaining == processes[i].burstTime
   ensures forall j :: 0 <= j < n ==> if processes[j].arrivalTime <= currentTime then processes[j].inQueue == true else processes[j].inQueue == false
-  ensures currentTime == 0
   ensures |readyQueue| > 0
   ensures forall i :: 0 <= i < |readyQueue| ==> 0 <= readyQueue[i] < n
   ensures forall i, j :: 0 <= i < j < |readyQueue| ==> readyQueue[i] != readyQueue[j]
@@ -304,7 +256,6 @@ method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq
   for i := 0 to n
     invariant forall j :: j in readyQueue ==> 0 <= j < n && processes[j].inQueue == true && processes[j].isComplete == false && processes[j].arrivalTime <= currentTime
     invariant forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime)
-    invariant forall i :: 0 <= i < n ==> processes[i].burstTime > 0 && processes[i].burstTimeRemaining > 0
     invariant forall i :: 0 <= i < n ==> processes[i].burstTimeRemaining == processes[i].burstTime
     invariant forall j :: 0 <= j < i ==> if processes[j].arrivalTime <= currentTime then processes[j].inQueue == true else processes[j].inQueue == false
     invariant forall j :: i <= j < n ==> processes[j].inQueue == false
@@ -321,6 +272,10 @@ method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq
   }
 }
 
+/*
+ * This method calculates the sum of the arrival times and burst times of all the processes in the sequence.
+ * It is used to calculate the maximum time at which all the processes will have completed.
+*/
 method SumProcessTimes(ps: seq<Process>) returns (total: int)
   requires |ps| > 0
   requires forall p :: p in ps ==> p.burstTime > 0
@@ -341,17 +296,22 @@ method SumProcessTimes(ps: seq<Process>) returns (total: int)
   SeqProcSumFull(ps);
 }
 
+/*
+ * This method is the main method which implements the Round Robin scheduling algorithm.
+ * It initializes the ready queue and the current time. It also marks the processes which have
+ * arrival time before the current time as present in the ready queue by moving them to the ready queue
+ * and marking inQueue flag as true. It calls updateQueue method till all the processes are complete.
+*/
 method RoundRobin(
   processes: seq<Process>, n: int,
   quantum: int)
   returns (programsExecuted: int)
   modifies processes[..]
   requires |processes| == n && quantum > 0 && n > 0 && processes[0].arrivalTime == 0
-  requires forall i :: 1 <= i < n ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i])
   requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   ensures programsExecuted == n
-  ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false// && p.burstTimeRemaining == 0 && p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
+  ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0 //&& p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
 {
   var readyQueue, currentTime := InitializeQueue(processes, n);
   UniqueSeqLengthAtMostN(readyQueue, n);
@@ -360,7 +320,6 @@ method RoundRobin(
   IfFalseImpliesTrue(processes, n);
   // Continue until the ready queue is empty
   while programsExecuted < n && currentTime < maxTime
-    //invariant 0 <= currentTime
     invariant 0 <= programsExecuted <= n
     invariant if programsExecuted == n then |readyQueue| == 0 else 0 < |readyQueue| <= n
     invariant forall i :: i in readyQueue ==> 0 <= i < n && processes[i].inQueue == true && processes[i].isComplete == false && processes[i].arrivalTime <= currentTime
@@ -370,15 +329,11 @@ method RoundRobin(
     invariant forall j :: 0 <= j < |readyQueue| ==> 0 <= readyQueue[j] < n
     invariant programsExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
     invariant forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
-    //invariant forall i :: 1 <= i < n ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i])
-    //invariant forall i :: 0 <= i < n ==> processes[i].burstTime == old(processes[i].burstTime) && processes[i].arrivalTime == old(processes[i].arrivalTime)
-    //invariant maxTime == SeqProcSum(processes)
     decreases maxTime - currentTime
   {
     var newQueue: seq<int>;
     var updatedTime: int;
     var updatedExecuted: int;
-    //assert maxTime == SeqProcSum(processes);
     if (|readyQueue| == 1 && processes[readyQueue[0]].burstTimeRemaining <= quantum) {
       readyQueueNeverEmpty(processes, n, currentTime);
     }
@@ -389,10 +344,6 @@ method RoundRobin(
   }
   var completedNotInQueue := set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false;
   if currentTime >= maxTime {
-    //assert forall i :: 0 <= i < n ==> processes[i].burstTime == old(processes[i].burstTime) && processes[i].arrivalTime == old(processes[i].arrivalTime);
-    //var temp := SeqProcSum(processes);
-    //assert temp == maxTime;
-    //assert maxTime == SeqProcSum(processes);
     ProveAllProcessesCompleteAtMaxTime(processes, currentTime, maxTime, programsExecuted);
     ProveCompletedSetHasSizeN(completedNotInQueue, n);
   }
@@ -413,11 +364,9 @@ method Main()
   temp := new Process(4, 3, 6);
   processes := processes + [temp];
   ArrivalTimeLessThanSum(processes);
-  assert forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i]);
-
   var completed := RoundRobin(processes, n, quantum);
   assert completed == n;
-  assert forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false;// && p.burstTimeRemaining == 0 && p.completionTime > p.arrivalTime && p.turnaroundTime > p.waitingTime && p.waitingTime >= 0;
+  assert forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0;// && p.completionTime > p.arrivalTime && p.turnaroundTime > p.waitingTime && p.waitingTime >= 0;
   //assert forall p :: p in processes[..] ==> p.turnaroundTime == p.completionTime - p.arrivalTime;
 }
 
@@ -448,6 +397,10 @@ function SeqProcSum(ps: seq<Process>): int
 
 // Lemmas used to verify the correctness of the code above
 
+/*
+ * This lemma proves that if the size of  the set of all indices of complete processes is equal to the size of
+ * processes sequence, then all the processes in the sequence are complete and not in the queue.
+*/
 lemma ProveAllObjectsComplete(processes: seq<Process>)
   requires |set i | 0 <= i < |processes| && processes[i].isComplete == true && processes[i].inQueue == false| == |processes|
   ensures forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false
@@ -461,6 +414,7 @@ lemma ProveAllObjectsComplete(processes: seq<Process>)
   // We know from the precondition that |completedIndices| == |processes|
   assert |completedIndices| == |processes|;
   assert forall i :: 0 <= i < |processes| ==> i in allIndices;
+  
   // Since allIndices has |processes| elements
   SetOfNElementsHasSizeN(|processes|);
   assert |allIndices| == |processes|;
@@ -497,6 +451,10 @@ lemma ProveAllObjectsComplete(processes: seq<Process>)
   assert forall i :: 0 <= i < |processes| ==> processes[i].isComplete == true && processes[i].inQueue == false;
 }
 
+/*
+ * This lemma proves that if a set A is a proper subset of set B, then the size of A is less than the size of B.
+ * Also, if a set A is a subset of set B, then the size of A is less than or equal to the size of B.
+*/
 lemma SubsetImpliesCardinalityLe<T>(A: set<T>, B: set<T>)
   requires A <= B || A < B
   ensures  A <= B ==> |A| <= |B|
@@ -504,9 +462,8 @@ lemma SubsetImpliesCardinalityLe<T>(A: set<T>, B: set<T>)
 {
   if |A| == 0 {
     // Base case: A is empty, so |A| = 0, and cardinalities are ≥ 0.
-    // Dafny automatically knows 0 <= |B|.
   } else {
-    // Inductive step: pick some x ∈ A.
+    // Inductive step: pick some x in A.
     var x :| x in A;
     // Remove x from both sets:
     var A2 := A - { x };
@@ -520,7 +477,10 @@ lemma SubsetImpliesCardinalityLe<T>(A: set<T>, B: set<T>)
   }
 }
 
-
+/*
+ * This lemma proves that if a sequence has only unique elements between 0 (inclusive) and n (exclusive) then the 
+ * length of the sequence is less than or equal to n.
+*/
 lemma UniqueSeqLengthAtMostN(s: seq<int>, n: nat)
   requires forall i :: 0 <= i < |s| ==> 0 <= s[i] < n
   requires forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
@@ -555,6 +515,10 @@ lemma UniqueSeqLengthAtMostN(s: seq<int>, n: nat)
   assert |sSet| <= |numbersSet|;
 }
 
+/*
+ * This lemma proves that if a sequence has only unique elements and all the elements of the sequence are present in
+ * the set, and vice versa, then the size of the sequence is equal to the size of the set.
+*/
 lemma setAndSeqEqual(s: seq<int>, sSet: set<int>)
   requires forall i :: 0 <= i < |s| ==> s[i] in sSet
   requires forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
@@ -578,9 +542,10 @@ lemma setAndSeqEqual(s: seq<int>, sSet: set<int>)
   }
 }
 
-// Returns a set containing all integers from 0 to n-1
-
-
+/*
+ * This lemma proves that if a process has inQueue flag as true and is not present in the Queue, then the size of that
+ * Queue is less than n.
+*/
 lemma MissingOneElementLength(processes: seq<Process>, s: seq<int>, n: nat)
   requires |processes| == n
   requires exists i :: 0 <= i < n && processes[i].isComplete == false && processes[i].inQueue == true && !exists k :: 0 <= k < |s| && s[k] == i
@@ -626,21 +591,10 @@ lemma MissingOneElementLength(processes: seq<Process>, s: seq<int>, n: nat)
   assert |s| < n;
 }
 
-predicate ProcessQueueCurTime(processes: seq<Process>, currentTime: int)
-  reads processes
-{
-  forall p :: (p in processes[..]) ==> if p.arrivalTime <= currentTime then
-                  (p.inQueue == true || p.isComplete == true) else (p.inQueue == false || p.isComplete == false)
-}
-
-predicate AllPinProcessQueue(processes: seq<Process>)
-  reads processes
-{
-  forall p :: (p in processes[..]) ==> !(p.inQueue == true && p.isComplete == true)
-}
-
-// Scans all processes and enqueues any that have arrived but are not yet in the queue
-
+/*
+ * This lemma proves that if a set has size n and can contain only elements between 0 (inclusive) and n (exclusive),
+ * then all the elements between 0 (inclusive) and n (exclusive) are present in the set.
+*/
 lemma NotInQueueProof(n: nat, completeNotInQueueSet: set<int>)
   requires |completeNotInQueueSet| == n
   requires forall i :: i in completeNotInQueueSet ==> 0 <= i < n
@@ -683,6 +637,9 @@ lemma NotInQueueProof(n: nat, completeNotInQueueSet: set<int>)
   assert forall i :: 0 <= i < n ==> i in completeNotInQueueSet;
 }
 
+/*
+ * This lemma proves that if all the processes are complete and not in queue, then the new queue is empty.
+*/
 lemma AllProcessesCompleteNotInQueue(processes: seq<Process>, n: nat)
   requires |processes| == n
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
@@ -711,6 +668,9 @@ lemma AllProcessesCompleteNotInQueue(processes: seq<Process>, n: nat)
   assert forall i :: 0 <= i < n ==> processes[i].isComplete && !processes[i].inQueue;
 }
 
+/*
+ * This lemma proves that if all the processes are complete and not in queue, then the new queue is empty.
+*/
 lemma newQueueMustBeEmpty(processes: seq<Process>, n: nat, newQueue: seq<int>)
   requires |processes| == n
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
@@ -758,6 +718,9 @@ lemma newQueueMustBeEmpty(processes: seq<Process>, n: nat, newQueue: seq<int>)
   assert |newQueue| == 0;
 }
 
+/*
+ * This lemma proves that the size of the set of all integers between 0 (inclusive) and n (exclusive) is equal to n.
+*/
 lemma SetOfNElementsHasSizeN(n: nat)
   ensures |SetOfIntegers(n)| == n
 {
@@ -777,10 +740,8 @@ lemma SetOfNElementsHasSizeN(n: nat)
     var setNMinus1 := SetOfIntegers(n-1);
     var setN := SetOfIntegers(n);
 
-    // Prove that setN = setNMinus1 ∪ {n-1}
     assert setN == setNMinus1 + {n-1};
 
-    // Prove that n-1 is not in setNMinus1
     assert n-1 !in setNMinus1;
 
     // Therefore, |setN| = |setNMinus1| + 1 = (n-1) + 1 = n
@@ -790,7 +751,10 @@ lemma SetOfNElementsHasSizeN(n: nat)
   }
 }
 
-
+/*
+ * This lemma proves that if there is a process which is not complete, then the size of the set of processes with
+ * isComplete flag as true is not equal to the number of processes.
+*/
 lemma NotAllCompleteImpliesCountNotN(processes: seq<Process>, n: nat)
   requires |processes| == n
   requires exists j :: 0 <= j < n && processes[j].isComplete == false
@@ -810,7 +774,10 @@ lemma NotAllCompleteImpliesCountNotN(processes: seq<Process>, n: nat)
   assert |completedNotInQueue| < n;
 }
 
-
+/*
+ * This lemma proves that if there is a process which is not complete, then the size of the set of processes with
+ * isComplete flag as true is not equal to the number of processes.
+*/
 lemma ProveUpdatedExecutedNotN(processes: seq<Process>, n: nat, updatedExecuted: nat)
   requires |processes| == n
   requires updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
@@ -820,19 +787,11 @@ lemma ProveUpdatedExecutedNotN(processes: seq<Process>, n: nat, updatedExecuted:
   NotAllCompleteImpliesCountNotN(processes, n);
 }
 
-
-
-// Pops the head of readyQueue, runs it for up to 'quantum',
-// updates times and re-queues or marks complete.
-
-
-
-
-//----------------------------------------------------------------------
-// (2) Lemma: extending a prefix by one preserves the sum‐relation.
-//     SeqProcSum(ps[..i+1]) = SeqProcSum(ps[..i]) + (fields of ps[i])
-//----------------------------------------------------------------------
-
+/*
+ * This lemma proves that the sum of the arrival times and burst times of all the processes in the sequence if we 
+ * slice the sequence at index i + 1 is equal to the sum of the arrival times and burst times of all the processes in
+ * the sequence if we slice it at index i plus the arrival time and burst time of the process at index i.
+*/
 lemma SeqProcSumPrefix(ps: seq<Process>, i: nat)
   requires 0 <= i < |ps|
   ensures SeqProcSum(ps[..i+1])
@@ -854,12 +813,11 @@ lemma SeqProcSumPrefix(ps: seq<Process>, i: nat)
   }
 }
 
-
-//----------------------------------------------------------------------
-// (3) Lemma: slicing off the entire sequence is a no‐op.
-//     SeqProcSum(ps[..|ps|]) == SeqProcSum(ps)
-//----------------------------------------------------------------------
-
+/*
+ * This lemma proves that the sum of the arrival times and burst times of all the processes in the sequence if we 
+ * slice the complete sequence is equal to the sum of the arrival times and burst times of all the processes in the
+ * sequence without slicing.
+*/
 lemma SeqProcSumFull(ps: seq<Process>)
   ensures SeqProcSum(ps[..|ps|]) == SeqProcSum(ps)
   decreases |ps|
@@ -885,19 +843,16 @@ lemma SeqProcSumFull(ps: seq<Process>)
   }
 }
 
-
-//----------------------------------------------------------------------
-// (4) Summation method: loops through ps, accumulating arrival+burst,
-//     and uses both lemmas to discharge invariants and postcondition.
-//----------------------------------------------------------------------
-
-
-
+/*
+ * This lemma proves that if all the processes are not complete and have a positive burst time remaining,
+ * then the burst time remaining of all the processes is positive.
+*/
 lemma IfFalseImpliesTrue(processes: seq<Process>, n: nat)
   requires |processes| == n
   requires forall i :: 0 <= i < n ==> processes[i].isComplete == false
   requires forall i :: 0 <= i < n ==> processes[i].burstTimeRemaining > 0
-  ensures forall j :: 0 <= j < n ==>
+
+  ensures forall j :: 0 <= j < n ==> 
                         if processes[j].isComplete == true then
                           processes[j].inQueue == false && processes[j].burstTimeRemaining == 0
                         else
@@ -912,14 +867,14 @@ lemma IfFalseImpliesTrue(processes: seq<Process>, n: nat)
     if processes[j].isComplete == true {
       // This case never happens due to the precondition.
       assert false; // Contradiction since all processes are not complete
-    } else {
-      // You may require additional assumptions or facts to justify this
-      // Here we just assume these values are consistent
-      // Otherwise, make this an assumption or add it as an input invariant
     }
   }
 }
 
+/*
+ * This lemma proves that if all the numbers between 0 (inclusive) and n (exclusive) are present in the set,
+ * then the size of the set is equal to n.
+*/
 lemma ProveCompletedSetHasSizeN(completedNotInQueue: set<int>, n: nat)
   requires forall i :: 0 <= i < n <==> i in completedNotInQueue
   ensures |completedNotInQueue| == n
@@ -941,6 +896,10 @@ lemma ProveCompletedSetHasSizeN(completedNotInQueue: set<int>, n: nat)
   assert completedNotInQueue == numbersSet;
 }
 
+/*
+ * This lemma proves that if the arrival time and burst time of all the processes in the sequence are non-negative,
+ * then the sum of the arrival times and burst times of all the processes in the sequence is non-negative.
+*/
 lemma SeqProcSumNonNegative(ps: seq<Process>)
   requires forall i :: 0 <= i < |ps| ==> ps[i].arrivalTime >= 0 && ps[i].burstTime > 0
   ensures if |ps| > 0 then SeqProcSum(ps) > 0 else SeqProcSum(ps) == 0
@@ -959,53 +918,29 @@ lemma SeqProcSumNonNegative(ps: seq<Process>)
   // Base case |ps| == 0 is true by definition (sum is 0).
 }
 
+/*
+ * This lemma proves that if the arrival time of a process is less than or equal to the sum of the arrival 
+ * times of all the processes before it, then the arrival time of the process is less than or equal to the sum of the
+ * arrival times of all the processes.
+*/
 lemma ArrivalTimeLessThanSum(processes: seq<Process>)
   requires |processes| > 0
-  // Original precondition
   requires forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime >= processes[i-1].arrivalTime
-
-  // --- ADDED PRECONDITIONS ---
-  // 1. All process times are non-negative
   requires forall i :: 0 <= i < |processes| ==> processes[i].arrivalTime >= 0 && processes[i].burstTime > 0
-  // 2. The "Chained Arrival" property
   requires forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= processes[i-1].arrivalTime + processes[i-1].burstTime
 
-  // Original ensures clause
   ensures forall i :: 1 <= i < |processes| ==> processes[i].arrivalTime <= SeqProcSum(processes[..i])
 {
-  // Dafny proves this forall statement by induction on 'i'.
-  // For any 'i' in the range, we prove the property.
   forall i | 1 <= i < |processes|
     ensures processes[i].arrivalTime <= SeqProcSum(processes[..i])
   {
-    // Let's establish that the sum of elements before process i-1 is non-negative.
-    // The sequence processes[..i-1] contains elements from 0 to i-2.
     var prefix := processes[..i-1];
-    SeqProcSumNonNegative(prefix); // Using Lemma 1
+    SeqProcSumNonNegative(prefix);
     assert SeqProcSum(prefix) >= 0;
 
     // By definition of SeqProcSum:
     SeqProcSumPrefix(processes, i-1);
     assert SeqProcSum(processes[..i]) == SeqProcSum(processes[..i-1]) + processes[i-1].arrivalTime + processes[i-1].burstTime;
-
-    // From our added "Chained Arrival" precondition, we know:
-    // processes[i].arrivalTime <= processes[i-1].arrivalTime + processes[i-1].burstTime
-
-    // We want to prove:
-    // processes[i].arrivalTime <= SeqProcSum(processes[..i])
-
-    // Combining the above, we need to show:
-    // processes[i-1].arrivalTime + processes[i-1].burstTime <= SeqProcSum(processes[..i])
-    //
-    // which expands to:
-    // processes[i-1].arrivalTime + processes[i-1].burstTime <=
-    //   SeqProcSum(processes[..i-1]) + processes[i-1].arrivalTime + processes[i-1].burstTime
-
-    // This simplifies to:
-    // 0 <= SeqProcSum(processes[..i-1])
-
-    // We already proved this with our call to SeqProcSumNonNegative.
-    // Therefore, the property holds for all i.
   }
 }
 
@@ -1042,3 +977,27 @@ lemma {:axiom} readyQueueNeverEmpty(processes: seq<Process>, n: nat, currentTime
   //requires forall i :: 1 <= i < n ==> processes[i].arrivalTime >= processes[i-1].arrivalTime && processes[i].arrivalTime <= SeqProcSum(processes[..i])
   ensures exists j :: 0 <= j < n && processes[j].arrivalTime <= currentTime && processes[j].inQueue == false && processes[j].isComplete == false
 
+
+// Below are predicates which depict a specification of one of the methods in the code.
+
+/*
+ * This predicate states that for all processes in the sequence, if the arrival time of the process is less than or
+ * equal to the current time, then the process is either in the queue or complete. If the arrival time of the process
+ * is greater than the current time, then the process is either not in the queue or not complete.
+*/
+predicate ProcessQueueCurTime(processes: seq<Process>, currentTime: int)
+  reads processes
+{
+  forall p :: (p in processes[..]) ==> if p.arrivalTime <= currentTime then
+                  (p.inQueue == true || p.isComplete == true) else (p.inQueue == false || p.isComplete == false)
+}
+
+/*
+ * This predicate states that for all processes in the sequence, if the process is in the queue and complete,
+ * then it is not possible.
+*/
+predicate AllPinProcessQueue(processes: seq<Process>)
+  reads processes
+{
+  forall p :: (p in processes[..]) ==> !(p.inQueue == true && p.isComplete == true)
+}
