@@ -79,6 +79,7 @@ method CheckForNewArrivals(
   requires forall i, j :: 0 <= i < j < |readyQueue| ==> readyQueue[i] != readyQueue[j]
   requires forall k :: 0 <= k < |readyQueue| ==> 0 <= readyQueue[k] < n
   requires forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
+  requires forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
   
   ensures forall i :: 0 <= i < |newQueue| ==> 0 <= newQueue[i] < n && processes[newQueue[i]].inQueue == true && processes[newQueue[i]].isComplete == false && processes[newQueue[i]].arrivalTime <= currentTime
   ensures ProcessQueueCurTime(processes, currentTime)
@@ -90,6 +91,7 @@ method CheckForNewArrivals(
   ensures forall i :: 0 <= i < n ==> processes[i].isComplete == true && processes[i].inQueue == false ==> old(processes[i].isComplete) == processes[i].isComplete && old(processes[i].arrivalTime) == processes[i].arrivalTime && old(processes[i].inQueue) == processes[i].inQueue
   ensures if (exists j :: 0 <= j < n && processes[j].isComplete == false && old(processes[j].inQueue) == true && !exists k :: 0 <= k < |newQueue| && newQueue[k] == j) then |newQueue| < n else |newQueue| <= n
   ensures forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
+  ensures forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
 {
   var i := 0;
   newQueue := readyQueue;
@@ -113,6 +115,7 @@ method CheckForNewArrivals(
     invariant forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
     invariant forall j :: j in newQueue ==> 0 <= j < n && (old(processes[j].inQueue) == false || exists k :: 0 <= k < |readyQueue| && readyQueue[k] == j)
     invariant |set i | 0 <= i < n && old(processes[i].isComplete) == true && old(processes[i].inQueue) == false| == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
+    invariant forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
     decreases n - i
   {
     if processes[i].arrivalTime <= currentTime
@@ -166,6 +169,7 @@ method UpdateQueue(
   requires forall i, j :: 0 <= i < j < |readyQueue| ==> readyQueue[i] != readyQueue[j]
   requires forall i, j :: 0 <= i < j < |processes| ==> processes[i] != processes[j]
   requires forall k :: 0 <= k < |readyQueue| ==> 0 <= readyQueue[k] < n
+  requires forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
   
   ensures forall i :: 0 <= i < |newQueue| ==> 0 <= newQueue[i] < n && processes[newQueue[i]].inQueue == true && processes[newQueue[i]].isComplete == false && processes[newQueue[i]].arrivalTime <= updatedTime
   ensures forall i, j :: 0 <= i < j < |newQueue| ==> newQueue[i] != newQueue[j]
@@ -175,6 +179,7 @@ method UpdateQueue(
   ensures updatedExecuted == programsExecuted || updatedExecuted == programsExecuted + 1
   ensures updatedExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
   ensures forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
+  ensures forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
 {
   // Initialize return values
   updatedTime := currentTime;
@@ -228,7 +233,6 @@ method UpdateQueue(
     newQueue := CheckForNewArrivals(processes, n, updatedTime, newQueue, true);
 
     ProveUpdatedExecutedNotN(processes, n, updatedExecuted);
-
   }
 }
 
@@ -240,10 +244,10 @@ method UpdateQueue(
 method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq<int>, currentTime: int)
   modifies processes[..]
   requires |processes| == n && n > 0 && processes[0].arrivalTime == 0
-  requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
+  requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime && processes[i].waitingTime == 0
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   ensures forall j :: j in readyQueue ==> 0 <= j < n && processes[j].inQueue == true && processes[j].isComplete == false && processes[j].arrivalTime <= currentTime
-  ensures forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime)
+  ensures forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime) && processes[j].waitingTime == old(processes[j].waitingTime)
   ensures forall i :: 0 <= i < n ==> processes[i].burstTimeRemaining == processes[i].burstTime
   ensures forall j :: 0 <= j < n ==> if processes[j].arrivalTime <= currentTime then processes[j].inQueue == true else processes[j].inQueue == false
   ensures |readyQueue| > 0
@@ -255,7 +259,7 @@ method InitializeQueue(processes: seq<Process>, n: nat) returns (readyQueue: seq
   currentTime := 0;
   for i := 0 to n
     invariant forall j :: j in readyQueue ==> 0 <= j < n && processes[j].inQueue == true && processes[j].isComplete == false && processes[j].arrivalTime <= currentTime
-    invariant forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime)
+    invariant forall j :: 0 <= j < n ==> processes[j].isComplete == old(processes[j].isComplete) && processes[j].arrivalTime == old(processes[j].arrivalTime) && processes[j].waitingTime == old(processes[j].waitingTime)
     invariant forall i :: 0 <= i < n ==> processes[i].burstTimeRemaining == processes[i].burstTime
     invariant forall j :: 0 <= j < i ==> if processes[j].arrivalTime <= currentTime then processes[j].inQueue == true else processes[j].inQueue == false
     invariant forall j :: i <= j < n ==> processes[j].inQueue == false
@@ -308,10 +312,10 @@ method RoundRobin(
   returns (programsExecuted: int)
   modifies processes[..]
   requires |processes| == n && quantum > 0 && n > 0 && processes[0].arrivalTime == 0
-  requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime
+  requires forall i :: 0 <= i < n ==> processes[i].isComplete == false && processes[i].inQueue == false && processes[i].burstTime > 0 && processes[i].arrivalTime >= 0 && processes[i].burstTimeRemaining == processes[i].burstTime && processes[i].waitingTime == 0
   requires forall i, j :: 0 <= i < j < n ==> processes[i] != processes[j]
   ensures programsExecuted == n
-  ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0 //&& p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime && p.waitingTime >= 0
+  ensures forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0 && p.waitingTime >= 0//&& p.completionTime >= p.arrivalTime && p.turnaroundTime >= p.waitingTime 
 {
   var readyQueue, currentTime := InitializeQueue(processes, n);
   UniqueSeqLengthAtMostN(readyQueue, n);
@@ -329,6 +333,7 @@ method RoundRobin(
     invariant forall j :: 0 <= j < |readyQueue| ==> 0 <= readyQueue[j] < n
     invariant programsExecuted == |set i | 0 <= i < n && processes[i].isComplete == true && processes[i].inQueue == false|
     invariant forall j :: 0 <= j < n ==> if processes[j].isComplete == true then processes[j].inQueue == false && processes[j].burstTimeRemaining == 0 else processes[j].burstTimeRemaining > 0
+    invariant forall i :: 0 <= i < n ==> processes[i].waitingTime >= 0
     decreases maxTime - currentTime
   {
     var newQueue: seq<int>;
@@ -366,7 +371,10 @@ method Main()
   ArrivalTimeLessThanSum(processes);
   var completed := RoundRobin(processes, n, quantum);
   assert completed == n;
-  assert forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0;// && p.completionTime > p.arrivalTime && p.turnaroundTime > p.waitingTime && p.waitingTime >= 0;
+  assert forall p :: p in processes[..] ==> p.isComplete == true && p.inQueue == false && p.burstTimeRemaining == 0 && p.waitingTime >= 0;
+
+  // These still need to be proved in order to achieve all the goals of this project
+  // && p.completionTime > p.arrivalTime && p.turnaroundTime > p.waitingTime;
   //assert forall p :: p in processes[..] ==> p.turnaroundTime == p.completionTime - p.arrivalTime;
 }
 
