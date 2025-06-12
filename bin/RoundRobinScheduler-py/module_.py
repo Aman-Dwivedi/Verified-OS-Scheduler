@@ -14,52 +14,6 @@ class default__:
         pass
 
     @staticmethod
-    def UniqueSeqLengthAtMostN(s, n):
-        d_0_numbersSet_: _dafny.Set
-        d_0_numbersSet_ = _dafny.Set({})
-        d_1_i_: int
-        d_1_i_ = 0
-        while (d_1_i_) < (n):
-            d_0_numbersSet_ = (d_0_numbersSet_) | (_dafny.Set({d_1_i_}))
-            d_1_i_ = (d_1_i_) + (1)
-        d_2_sSet_: _dafny.Set
-        d_2_sSet_ = _dafny.Set({})
-        d_3_j_: int
-        d_3_j_ = 0
-        while (d_3_j_) < (len(s)):
-            d_2_sSet_ = (d_2_sSet_) | (_dafny.Set({(s)[d_3_j_]}))
-            d_3_j_ = (d_3_j_) + (1)
-
-    @staticmethod
-    def SetOfIntegers(n):
-        def iife0_():
-            coll0_ = _dafny.Set()
-            compr_0_: int
-            for compr_0_ in _dafny.IntegerRange(0, n):
-                d_0_i_: int = compr_0_
-                if ((0) <= (d_0_i_)) and ((d_0_i_) < (n)):
-                    coll0_ = coll0_.union(_dafny.Set([d_0_i_]))
-            return _dafny.Set(coll0_)
-        return iife0_()
-        
-
-    @staticmethod
-    def ProcessQueueCurTime(processes, currentTime):
-        def lambda0_(forall_var_0_):
-            d_0_p_: Process = forall_var_0_
-            return not ((d_0_p_) in (_dafny.SeqWithoutIsStrInference((processes)[::]))) or ((((d_0_p_.inQueue) == (True)) or ((d_0_p_.isComplete) == (True)) if (d_0_p_.arrivalTime) <= (currentTime) else ((d_0_p_.inQueue) == (False)) or ((d_0_p_.isComplete) == (False))))
-
-        return _dafny.quantifier((_dafny.SeqWithoutIsStrInference((processes)[::])).UniqueElements, True, lambda0_)
-
-    @staticmethod
-    def AllPinProcessQueue(processes):
-        def lambda0_(forall_var_0_):
-            d_0_p_: Process = forall_var_0_
-            return not ((d_0_p_) in (_dafny.SeqWithoutIsStrInference((processes)[::]))) or (not(((d_0_p_.inQueue) == (True)) and ((d_0_p_.isComplete) == (True))))
-
-        return _dafny.quantifier((_dafny.SeqWithoutIsStrInference((processes)[::])).UniqueElements, True, lambda0_)
-
-    @staticmethod
     def CheckForNewArrivals(processes, n, currentTime, readyQueue, extraInQueue):
         newQueue: _dafny.Seq = _dafny.Seq({})
         d_0_i_: int
@@ -73,7 +27,6 @@ class default__:
                 obj0_.inQueue = True
                 newQueue = (newQueue) + (_dafny.SeqWithoutIsStrInference([d_0_i_]))
                 d_1_added_ = True
-            default__.UniqueSeqLengthAtMostN(newQueue, n)
             d_2_newSet_: _dafny.Set
             def iife0_():
                 coll0_ = _dafny.Set()
@@ -166,11 +119,18 @@ class default__:
         return newQueue, updatedTime, updatedExecuted
 
     @staticmethod
-    def SeqProcSum(ps):
-        if (len(ps)) == (0):
-            return 0
-        elif True:
-            return ((default__.SeqProcSum(_dafny.SeqWithoutIsStrInference((ps)[:(len(ps)) - (1):]))) + ((ps)[(len(ps)) - (1)].arrivalTime)) + ((ps)[(len(ps)) - (1)].burstTime)
+    def InitializeQueue(processes, n):
+        readyQueue: _dafny.Seq = _dafny.Seq({})
+        currentTime: int = int(0)
+        readyQueue = _dafny.SeqWithoutIsStrInference([])
+        currentTime = 0
+        hi0_ = n
+        for d_0_i_ in range(0, hi0_):
+            if ((processes)[d_0_i_].arrivalTime) <= (currentTime):
+                obj0_ = (processes)[d_0_i_]
+                obj0_.inQueue = True
+                readyQueue = (readyQueue) + (_dafny.SeqWithoutIsStrInference([d_0_i_]))
+        return readyQueue, currentTime
 
     @staticmethod
     def SumProcessTimes(ps):
@@ -187,86 +147,175 @@ class default__:
     def RoundRobin(processes, n, quantum):
         programsExecuted: int = int(0)
         d_0_readyQueue_: _dafny.Seq
-        d_0_readyQueue_ = _dafny.SeqWithoutIsStrInference([0])
         d_1_currentTime_: int
-        d_1_currentTime_ = 0
-        obj0_ = (processes)[0]
-        obj0_.inQueue = True
-        hi0_ = n
-        for d_2_i_ in range(1, hi0_):
-            if ((processes)[d_2_i_].arrivalTime) <= (d_1_currentTime_):
-                obj1_ = (processes)[d_2_i_]
-                obj1_.inQueue = True
-                d_0_readyQueue_ = (d_0_readyQueue_) + (_dafny.SeqWithoutIsStrInference([d_2_i_]))
-        default__.UniqueSeqLengthAtMostN(d_0_readyQueue_, n)
+        out0_: _dafny.Seq
+        out1_: int
+        out0_, out1_ = default__.InitializeQueue(processes, n)
+        d_0_readyQueue_ = out0_
+        d_1_currentTime_ = out1_
         programsExecuted = 0
-        d_3_maxTime_: int
-        out0_: int
-        out0_ = default__.SumProcessTimes(processes)
-        d_3_maxTime_ = out0_
-        while ((programsExecuted) < (n)) and ((d_1_currentTime_) < (d_3_maxTime_)):
-            d_4_newQueue_: _dafny.Seq = _dafny.Seq({})
-            d_5_updatedTime_: int = int(0)
-            d_6_updatedExecuted_: int = int(0)
-            out1_: _dafny.Seq
-            out2_: int
-            out3_: int
-            out1_, out2_, out3_ = default__.UpdateQueue(processes, n, quantum, d_0_readyQueue_, d_1_currentTime_, programsExecuted)
-            d_4_newQueue_ = out1_
-            d_5_updatedTime_ = out2_
-            d_6_updatedExecuted_ = out3_
-            d_0_readyQueue_ = d_4_newQueue_
-            d_1_currentTime_ = d_5_updatedTime_
-            programsExecuted = d_6_updatedExecuted_
-        d_7_completedNotInQueue_: _dafny.Set
+        d_2_maxTime_: int
+        out2_: int
+        out2_ = default__.SumProcessTimes(processes)
+        d_2_maxTime_ = out2_
+        while ((programsExecuted) < (n)) and ((d_1_currentTime_) < (d_2_maxTime_)):
+            d_3_newQueue_: _dafny.Seq = _dafny.Seq({})
+            d_4_updatedTime_: int = int(0)
+            d_5_updatedExecuted_: int = int(0)
+            out3_: _dafny.Seq
+            out4_: int
+            out5_: int
+            out3_, out4_, out5_ = default__.UpdateQueue(processes, n, quantum, d_0_readyQueue_, d_1_currentTime_, programsExecuted)
+            d_3_newQueue_ = out3_
+            d_4_updatedTime_ = out4_
+            d_5_updatedExecuted_ = out5_
+            d_0_readyQueue_ = d_3_newQueue_
+            d_1_currentTime_ = d_4_updatedTime_
+            programsExecuted = d_5_updatedExecuted_
+        d_6_completedNotInQueue_: _dafny.Set
         def iife0_():
             coll0_ = _dafny.Set()
             compr_0_: int
             for compr_0_ in _dafny.IntegerRange(0, n):
-                d_8_i_: int = compr_0_
-                if ((((0) <= (d_8_i_)) and ((d_8_i_) < (n))) and (((processes)[d_8_i_].isComplete) == (True))) and (((processes)[d_8_i_].inQueue) == (False)):
-                    coll0_ = coll0_.union(_dafny.Set([d_8_i_]))
+                d_7_i_: int = compr_0_
+                if ((((0) <= (d_7_i_)) and ((d_7_i_) < (n))) and (((processes)[d_7_i_].isComplete) == (True))) and (((processes)[d_7_i_].inQueue) == (False)):
+                    coll0_ = coll0_.union(_dafny.Set([d_7_i_]))
             return _dafny.Set(coll0_)
-        d_7_completedNotInQueue_ = iife0_()
+        d_6_completedNotInQueue_ = iife0_()
         
         return programsExecuted
 
     @staticmethod
     def Main(noArgsParameter__):
-        userInput = input("Enter number of processes: ")
-        d_0_n_: int
-        d_0_n_ = 4
-        d_1_quantum_: int
-        d_1_quantum_ = 1
-        d_2_processes_: _dafny.Seq
-        d_2_processes_ = _dafny.SeqWithoutIsStrInference([])
-        d_3_temp_: Process
-        nw0_ = Process()
-        nw0_.ctor__(1, 0, 5)
-        d_3_temp_ = nw0_
-        d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
-        nw1_ = Process()
-        nw1_.ctor__(2, 1, 3)
-        d_3_temp_ = nw1_
-        d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
-        nw2_ = Process()
-        nw2_.ctor__(3, 2, 8)
-        d_3_temp_ = nw2_
-        d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
-        nw3_ = Process()
-        nw3_.ctor__(4, 3, 6)
-        d_3_temp_ = nw3_
-        d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
-        d_4_completed_: int
-        out0_: int
-        out0_ = default__.RoundRobin(d_2_processes_, d_0_n_, d_1_quantum_)
-        d_4_completed_ = out0_
-        default__.printOutput(d_2_processes_)
+        print("Welcome to the Verified Round Robin Scheduler!")
+        print("1. Run a unit test")
+        print("2. Enter a custom set of processes")
+        print("3. Exit")
+        choice = int(input("Enter your choice: "))
+        while choice != 3:
+            if choice == 1:
+                print("Running unit test...")
+                d_0_n_: int
+                d_0_n_ = 4
+                d_1_quantum_: int
+                d_1_quantum_ = 1
+                d_2_processes_: _dafny.Seq
+                d_2_processes_ = _dafny.SeqWithoutIsStrInference([])
+                d_3_temp_: Process
+                nw0_ = Process()
+                nw0_.ctor__(1, 0, 5)
+                d_3_temp_ = nw0_
+                d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
+                nw1_ = Process()
+                nw1_.ctor__(2, 1, 3)
+                d_3_temp_ = nw1_
+                d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
+                nw2_ = Process()
+                nw2_.ctor__(3, 2, 8)
+                d_3_temp_ = nw2_
+                d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
+                nw3_ = Process()
+                nw3_.ctor__(4, 3, 6)
+                d_3_temp_ = nw3_
+                d_2_processes_ = (d_2_processes_) + (_dafny.SeqWithoutIsStrInference([d_3_temp_]))
+                d_4_completed_: int
+                out0_: int
+                out0_ = default__.RoundRobin(d_2_processes_, d_0_n_, d_1_quantum_)
+                d_4_completed_ = out0_
+                default__.printOutput(d_2_processes_)
+                print("Unit test completed successfully!")
+            elif choice == 2:
+                quantum = 1
+                processes, n = default__.userInput()
+                default__.RoundRobin(processes, n, quantum)
+                default__.printOutput(processes)
+                print("Processes completed successfully!")
+            else:
+                print("Invalid choice. Please try again.")
+            print("\n1. Run a unit test")
+            print("2. Enter a custom set of processes")
+            print("3. Exit")
+            choice = int(input("Enter your choice: "))
+        print("Exiting...")
+
+
+    @staticmethod
+    def userInput():
+        n = int(input("Enter the number of processes: "))
+        processes = []
+        i = 1
+        while i <= n:
+            arrival = int(input(f"Enter the arrival time for process {i}: "))
+            if i == 1:
+                if arrival != 0:
+                    print("Arrival time must be 0 for the first process")
+                    continue
+            else:
+                # i - 2 since i starts at 1
+                if arrival > processes[i-2].arrivalTime + processes[i-2].burstTime:
+                    print("Arrival time must be smaller than the completion time of the previous process (that is, the previous process's arrival time + burst time)")
+                    continue
+                if arrival < processes[i-2].arrivalTime:
+                    print("Arrival time must be greater than or equal to the arrival time of the previous process")
+                    continue
+            burst = int(input(f"Enter the burst time for process {i}: "))
+            if burst <= 0:
+                print("Burst time must be positive.")
+                continue
+            process = Process()
+            process.ctor__(i, arrival, burst)
+            processes.append(process)
+            i += 1
+        return processes, n
+
     
     @staticmethod
     def printOutput(processes):
+        avg_waiting_time = 0
+        avg_turntaround_time = 0
+
         for p in processes:
             print(f"Process ID: {p.pid}, Arrival: {p.arrivalTime}, Burst Time: {p.burstTime}, Burst Time Remaining: {p.burstTimeRemaining}, Completion Time: {p.completionTime}, Turn Around Time: {p.turnaroundTime}, Waiting Time: {p.waitingTime}, In Queue: {p.inQueue}, Completed? {p.isComplete}")
+            avg_waiting_time += p.waitingTime
+            avg_turntaround_time += p.turnaroundTime
+        print("Average Waiting Time: ", avg_waiting_time / len(processes))
+        print("Average Turnaround Time: ", avg_turntaround_time / len(processes))
+
+    @staticmethod
+    def SetOfIntegers(n):
+        def iife0_():
+            coll0_ = _dafny.Set()
+            compr_0_: int
+            for compr_0_ in _dafny.IntegerRange(0, n):
+                d_0_i_: int = compr_0_
+                if ((0) <= (d_0_i_)) and ((d_0_i_) < (n)):
+                    coll0_ = coll0_.union(_dafny.Set([d_0_i_]))
+            return _dafny.Set(coll0_)
+        return iife0_()
+        
+
+    @staticmethod
+    def SeqProcSum(ps):
+        if (len(ps)) == (0):
+            return 0
+        elif True:
+            return ((default__.SeqProcSum(_dafny.SeqWithoutIsStrInference((ps)[:(len(ps)) - (1):]))) + ((ps)[(len(ps)) - (1)].arrivalTime)) + ((ps)[(len(ps)) - (1)].burstTime)
+
+    @staticmethod
+    def ProcessQueueCurTime(processes, currentTime):
+        def lambda0_(forall_var_0_):
+            d_0_p_: Process = forall_var_0_
+            return not ((d_0_p_) in (_dafny.SeqWithoutIsStrInference((processes)[::]))) or ((((d_0_p_.inQueue) == (True)) or ((d_0_p_.isComplete) == (True)) if (d_0_p_.arrivalTime) <= (currentTime) else ((d_0_p_.inQueue) == (False)) or ((d_0_p_.isComplete) == (False))))
+
+        return _dafny.quantifier((_dafny.SeqWithoutIsStrInference((processes)[::])).UniqueElements, True, lambda0_)
+
+    @staticmethod
+    def AllPinProcessQueue(processes):
+        def lambda0_(forall_var_0_):
+            d_0_p_: Process = forall_var_0_
+            return not ((d_0_p_) in (_dafny.SeqWithoutIsStrInference((processes)[::]))) or (not(((d_0_p_.inQueue) == (True)) and ((d_0_p_.isComplete) == (True))))
+
+        return _dafny.quantifier((_dafny.SeqWithoutIsStrInference((processes)[::])).UniqueElements, True, lambda0_)
 
 
 class Process:
